@@ -1,0 +1,8 @@
+{
+  "appId": "com.mobaileali.hesabino",
+  "appName": "حسابینو",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}
