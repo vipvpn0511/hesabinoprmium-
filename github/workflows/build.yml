@@ -1,0 +1,42 @@
+name: Build APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: sudo apt-get install -y imagemagick
+      - run: npm install
+      - run: |
+          mkdir -p www
+          cp index.html manifest.json icon-192.png icon-512.png www/
+          npx cap add android
+          npx cap sync android
+      - run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#</manifest>#<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/><uses-permission android:name="android.permission.USE_BIOMETRIC"/></manifest>#' $M
+          R=android/app/src/main/res
+          rm -rf $R/mipmap-anydpi-v26
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            n=${d%%:*}; s=${d##*:}
+            convert icon-512.png -resize ${s}x${s} $R/mipmap-$n/ic_launcher.png
+            cp $R/mipmap-$n/ic_launcher.png $R/mipmap-$n/ic_launcher_round.png
+          done
+      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk hesabino.apk
+          gh release create "build-${{ github.run_number }}" hesabino.apk --title "Hesabino build ${{ github.run_number }}" --notes "APK"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
